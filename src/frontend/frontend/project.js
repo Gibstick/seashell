@@ -28,7 +28,6 @@ angular.module('frontend-app')
       self.state = 'edit-project';
       self.project = openProject;
       self.userid = $cookies.getObject(SEASHELL_CREDS_COOKIE).user;
-      self.is_deleteable = ! /^[aA][0-9]+/.test(self.project.name);
       self.download = function(){
         openProject.getDownloadToken().then(function (token){
             var raw = JSON.stringify(token);
@@ -63,4 +62,9 @@ angular.module('frontend-app')
           }
           return recent;
         });
+       // Tests if project is deleteable
+       self.isDeletable = function(project) {
+            return ! /^[aA][0-9]+/.test(project);
+       };
+      self.is_deleteable = self.isDeletable(self.project.name);
     }]);
