@@ -19,6 +19,23 @@
 
 /* jshint supernew: true */
 
+
+/**
+ * Returns a comparison function that strips the first n characters from two string inputs
+ * and compares the rest numerically 
+ * @param {Number} n - The non-negative integer number of characters to strip off before comparing
+ * @returns {function} The comparison function
+ */
+function trimAndCompare(n) {
+    return function (a, b) {
+        // parseInt stops when it encounters non-number, so we don't need to filter trailing junk
+        var aNumeric = parseInt(a.slice(n)); 
+        var bNumeric = parseInt(b.slice(n));
+        // comparison function follows strcmp convention
+        return aNumeric < bNumeric ? -1 : bNumeric < aNumeric ? 1 : 0;
+    };
+}
+
 angular.module('frontend-app')
   .filter('projectFilter', function() {
     return function(input, type){
@@ -48,6 +65,10 @@ angular.module('frontend-app')
           }
         }
       }
+      if (type === 'A') {
+        out.sort(trimAndCompare(1));        
+      } else if (type === 'TUT' || type === 'LEC') {
+        out.sort(trimAndCompare(3));
+      }
       return out;
-    };
-  });
+    };});
