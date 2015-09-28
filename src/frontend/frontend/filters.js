@@ -18,23 +18,6 @@
  */
 
 /* jshint supernew: true */
-
-/*
- * Comparison function that trims the prefix from Assignment, Lecture, and Tutorial names
- * and provides a numeric comparison for them.
- * Requires an assignment name of the form (A|Lec|Tut)[0-9]+
- * @param {String} a - The first project name to compare
- * @param {String} b - The second project name to compare
- * @returns {Boolean} 1 if a < b; -1 if b < a; 0 if a == b
- */
-function trimAndCompare(a, b) {
-  // parseInt stops when it encounters non-number, so we don't need to filter trailing junk
-  var aNumeric = parseInt(a.slice(a.split(/[0-9]/)[0].length));
-  var bNumeric = parseInt(b.slice(b.split(/[0-9]/)[0].length));
-  // comparison function follows strcmp convention
-  return aNumeric < bNumeric ? -1 : bNumeric < aNumeric ? 1 : 0;
-
-  // type is one of 'A', 'TUT', 'LEC', or 'NONE'
 }
 angular.module('frontend-app')
   .filter('projectFilter', function() {
@@ -61,14 +44,14 @@ angular.module('frontend-app')
 
       for (var i = 0; i < input.length; i++) {
         var name = input[i][0];
+        // either match the pattern
+        // or negative match every pattern for the "Personal" category
         if (!isNone && pattern.test(name)) {
           out.push(name);
         } else if (isNone && !pattAssn.test(name) && !pattTut.test(name) && !pattLec.test(name)) {
           out.push(name);
         }
       }
-
-      if (!isNone) out.sort(trimAndCompare);
 
       return out;
     };
