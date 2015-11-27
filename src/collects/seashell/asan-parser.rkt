@@ -58,6 +58,7 @@
   
   ;; Trace an individual line of input
   (define (stack-trace-line line)
+    (define out (open-output-bytes))
     (cond
       [(regexp-match #rx#"^{" line)
        ;; Parse the pretend-JSON
@@ -83,88 +84,92 @@
          [(and (not (equal? (hash-ref frame 'file 'nope) "<null>"))
                (not (equal? function "<null>"))
                (and (not (equal? function "main")) (not ignore?)))
-          (format "frame ~a: ~a, ~a:~a:~a\n"
-                  (hash-ref frame 'frame)
-                  function
-                  short-file
-                  (hash-ref frame 'line)
-                  (hash-ref frame 'column))]
+          (fprintf out
+                   "frame ~a: ~a, ~a:~a:~a\n"
+                   (hash-ref frame 'frame)
+                   function
+                   short-file
+                   (hash-ref frame 'line)
+                   (hash-ref frame 'column))]
          [(and (not (equal? function "<null>"))
                (not (equal? function "main"))
                (not ignore?))
-          (format "frame ~a: ~a, from module ~a (+~a)\n"
-                  (hash-ref frame 'frame)
-                  function
-                  short-module
-                  (hash-ref frame 'offset))]
-         [else
-           (format "  frame ~a: module ~a (+~a)\n"
+          (fprintf out
+                   "frame ~a: ~a, from module ~a (+~a)\n"
                    (hash-ref frame 'frame)
+                   function
                    short-module
-                   (hash-ref frame 'offset))])]
+                   (hash-ref frame 'offset))]
+         [else
+           (fprintf out 
+                    "  frame ~a: module ~a (+~a)\n"
+                    (hash-ref frame 'frame)
+                    short-module
+                    (hash-ref frame 'offset))])]
 
       ;; Parse other misc. output`
       [(regexp-match? #rx#"^(Direct|Indirect)" line)
-       (format "\n~a byte(s) allocated, never freed.\n"
-               (first (regexp-match #rx#"[0-9]+" line)))]
+       (fprintf out "\n~a byte(s) allocated, never freed.\n"
+                (first (regexp-match #rx#"[0-9]+" line)))]
       [(or (regexp-match? #rx#"^WRITE" line) (regexp-match? #rx#"^READ" line))
        (define size (second (regexp-match #rx#"size ([0-9]+)" line)))
        (define address (first (regexp-match address-pattern line)))
-       (format "  Error caused by ~a of size ~a  byte(s) to ~a:\n"
-               (if (regexp-match? #rx#"^WRITE" line)
-                   "write"
-                   "read")
-               size
-               address)]
+       (fprintf out "  Error caused by ~a of size ~a  byte(s) to ~a:\n"
+                (if (regexp-match? #rx#"^WRITE" line)
+                    "write"
+                    "read")
+                size
+                address)]
       [(regexp-match? supp-alloc-addr-pattern line)
-       (apply (lambda (a b c d) (format "\n  ~a is ~a bytes ~a of ~a-byte region "))
+       (apply (lambda (a b c d) (fprintf out "\n  ~a is ~a bytes ~a of ~a-byte region " a b c d))
               (rest (regexp-match supp-alloc-addr-pattern line)))]
       [(regexp-match? #rx#"^allocated by:\n" line)
        "allocated by:\n"]
       [(regexp-match? supp-stack-addr-pattern line)
-       (apply (lambda (a b) (format "\n  ~a is contained ~a bytes into stack frame:\n" a b))
+       (apply (lambda (a b) (fprintf out "\n  ~a is contained ~a bytes into stack frame:\n" a b))
               (rest (regexp-match supp-stack-addr-pattern line)))]
       [(regexp-match? frame-info-pattern line)
        (define num-frame-objects (second (regexp-match frame-info-pattern line)))
-       (format "\n  This frame has ~a object(s):\n" num-frame-objects)]
+       (fprintf out "\n  This frame has ~a object(s):\n" num-frame-objects)]
       [(regexp-match? frame-var-pattern line)
-       (define p (open-output-string)) ; build up the string in a port
        (define frame-var-info (regexp-match frame-var-pattern line))
        (define object-size (- (bytes->number (third frame-var-info))
                               (bytes->number (second frame-var-info))))
-       (fprintf p
+       (fprintf out 
                 "  ~a byte object ~a located ~a bytes into frame."
                 object-size
                 (fourth frame-var-info)
                 (second frame-var-info))
-       (cond [(regexp-match? #rx#"overflow" line) (fprintf p " Access overflowed this variable.\n")]
-             [(regexp-match? #rx#"underflow" line) (fprintf p"  Access underflowed this variable.\n")]
-             [else (fprintf p "\n")])
-       (get-output-string p)]
+       (cond [(regexp-match? #rx#"overflow" line) (fprintf out " Access overflowed this variable.\n")]
+             [(regexp-match? #rx#"underflow" line) (fprintf out "  Access underflowed this variable.\n")]
+             [else (fprintf out "\n")])]
       [(regexp-match? #rx#"^previously allocated" line)
-       "\n  Allocated by:\n"]
+       (fprintf out "\n  Allocated by:\n")]
       [(regexp-match? #rx#"^freed by" line)
-       "freed already by:\n"]
+       (fprintf out "freed already by:\n")]
       [(regexp-match? supp-global-addr-pattern line)
        (define global-addr-info (regexp-match supp-global-addr-pattern line))
        (define short-addr-file-info (drop-right (string-split (sixth global-addr-info) "/") 1))
        (apply (lambda (x1 x2 x3 x4 x5 x6 x7 x8 x9) ; This way we don't have to repeatedly traverse the list
-         (format "\n  ~a is ~a bytes ~a of ~a byte(s) global variable ~a (located ~a) defined at ~a:~a:~a.\n"
-                 x1
-                 x2
-                 x3
-                 x9
-                 x4
-                 x8
-                 short-addr-file-info
-                 x6
-                 x7))
+         (fprintf out 
+                   "\n  ~a is ~a bytes ~a of ~a byte(s) global variable ~a (located ~a) defined at ~a:~a:~a.\n"
+                  x1
+                  x2
+                  x3
+                  x9
+                  x4
+                  x8
+                  short-addr-file-info
+                  x6
+                  x7))
               (rest global-addr-info))]
-      [else #f]
-      ))
+      [else (void)]
+      )
+    (get-output-string out))
+
 
   (define (stack-trace contents)
-    (filter (lambda (x) x) (map stack-trace-line contents)))
+    (map stack-trace-line contents))
 
   
   (define to-check (second contents))
