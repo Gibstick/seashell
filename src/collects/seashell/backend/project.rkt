@@ -378,8 +378,7 @@
 ;;
 ;; Arguments:
 ;;  name - Name of project.
-;;  file - Full path and name of file we are compiling from, or #f
-;;         to denote no file.  (We attempt to do something reasonable in this case).
+;;  file - Full path and name of file we are compiling from
 ;;  test - Name of test, or empty to denote no test.
 ;;
 ;; Returns:
@@ -394,12 +393,33 @@
   (-> project-name? path-string? (listof path-string?)
       (values boolean?
               hash?))
+  (logf 'debug file)
   (when (not (is-project? name))
     (raise (exn:project (format "Project ~a does not exist!" name)
                         (current-continuation-marks))))
 
   (define project-base (build-project-path name))
   (define project-common (check-and-build-path project-base (read-config 'common-subdirectory)))
+
+  (match-define-values (question-base _ _)
+    (split-path file))
+
+  (logf 'debug (format "question-base: ~a" question-base))
+
+  ;; Read the settings file that contains the file that is supposed to be run
+  (define file-to-run
+    (build-path 
+      question-base
+      (with-input-from-file 
+        (build-path project-base question-base ".qsettings") 
+        (lambda () 
+          (with-handlers 
+            ([exn:fail:read? (lambda (exn) 
+                               (raise (exn:project ("Could not access question settings file."
+                                                    ))))])  
+            (read-line))))))
+
+  (logf 'debug (format "file-to-run: ~a" file-to-run))
 
   ;; Figure out which language to run with
   (define lang
@@ -408,9 +428,13 @@
       ['#"rkt" 'racket]
       ['#"c" 'C]
       [_ (error "You can only run .c or .rkt files!")]))
+
+
   ;; Base path, and basename of the file being run
   (match-define-values (base exe _)
-    (split-path (check-and-build-path project-base file)))
+    (split-path (check-and-build-path project-base file-to-run)))
+
+  
 
   (define (compile-c-files)
     ;; Get the .c and .o files needed to compile file
@@ -424,7 +448,7 @@
                                     '("-lm")
                                     (cons (build-path base exe) c-files)
                                     o-files))
-    (define output-path (check-and-build-path (runtime-files-path) (format "~a-~a-~a-binary" name (file-name-from-path file) (gensym))))
+    (define output-path (check-and-build-path (runtime-files-path) (format "~a-~a-~a-binary" name (file-name-from-path file-to-run) (gensym))))
     (when result
       (with-output-to-file output-path
                            #:exists 'replace
@@ -456,7 +480,7 @@
   (define-values (result messages target)
     (match lang
       ['C (compile-c-files)]
-      ['racket (values #t '() (check-and-build-path project-base file))]))
+      ['racket (values #t '() (check-and-build-path project-base file-to-run))]))
 
   (cond
     [(and result (empty? tests))
