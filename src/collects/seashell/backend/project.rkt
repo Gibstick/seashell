@@ -41,7 +41,10 @@
          get-most-recently-used
          update-most-recently-used
          export-project
-         archive-projects)
+         archive-projects
+         get-file-to-run
+         set-file-to-run
+         )
 
 (require seashell/log
          seashell/seashell-config
@@ -393,37 +396,24 @@
   (-> project-name? path-string? (listof path-string?)
       (values boolean?
               hash?))
-  (logf 'debug file)
   (when (not (is-project? name))
     (raise (exn:project (format "Project ~a does not exist!" name)
                         (current-continuation-marks))))
 
   (define project-base (build-project-path name))
   (define project-common (check-and-build-path project-base (read-config 'common-subdirectory)))
-
   (match-define-values (question-base _ _)
     (split-path file))
 
-  (logf 'debug (format "question-base: ~a" question-base))
-
   ;; Read the settings file that contains the file that is supposed to be run
   (define file-to-run
-    (build-path 
-      question-base
-      (with-input-from-file 
-        (build-path project-base question-base (read-config 'question-settings-file)) 
-        (lambda () 
-          (with-handlers 
-            ([exn:fail:read? (lambda (exn) 
-                               (raise (exn:project ("Could not access question settings file."
-                                                    ))))])  
-            (read-line))))))
-
+    (build-path question-base (get-file-to-run project-base question-base))) 
+    
   (logf 'debug (format "file-to-run: ~a" file-to-run))
 
   ;; Figure out which language to run with
   (define lang
-    (match (filename-extension file)
+    (match (filename-extension file-to-run)
       ;; TODO: allow students to run .o files as well?
       ['#"rkt" 'racket]
       ['#"c" 'C]
@@ -702,3 +692,62 @@
     (make-directory arch-root))
   (rename-file-or-directory proj-root dir-path)
   (make-directory proj-root))
+
+
+;; (get-file-to-run project question) attempts to read the 
+;;   runner settings file, that specifies which file to run.
+;;
+;; Params:
+;;   project - path of the project
+;;   question - basename of the question (eg. "q2")
+;;
+;; Returns:
+;;   A string indicating the file to run
+(define/contract (get-file-to-run project question)
+  (-> path-string? path-string? path-string?)
+  (define path (check-and-build-path 
+                 project
+                 question
+                 (read-config 'question-settings-file)
+                 ))
+  (define file-to-run 
+    (with-input-from-file 
+      path 
+      (lambda () 
+        (with-handlers 
+          ([exn:fail:read? 
+             (lambda (exn) (raise (exn:project ("Could read from question settings file."))))]
+           )  
+          (read-line)))))
+  (unless (file-exists? file-to-run)
+    (raise (exn:project (format "Invalid file to run: ~a (does it exist?)" file-to-run)
+                        (current-continuation-marks))))
+  file-to-run)
+  
+;; (set-file-to-run project question file) writes to the question
+;;   settings file, specifying which file to run.
+;; 
+;; Params:
+;;   project - the path of the project
+;;   question - the basename of the question (eg. "q2")
+;;   file - the basename of the file to run (eg. "main.c")
+;;
+;; Returns:
+;;   Nothing
+(define/contract (set-file-to-run project question file)
+  (-> path-string? path-string? path-string? void)
+  (define path (check-and-build-path
+                 project
+                 question
+                 (read-config 'question-settings-file)
+                 ))
+  (with-output-to-file
+    path
+    (lambda ()
+      (with-handlers
+        ([exn:fail?
+           (lambda (exn) (raise (exn:project ("Could not write to question settings file."))))]
+         )
+        file))))
+
+
