@@ -716,7 +716,8 @@
       (lambda () 
         (with-handlers 
           ([exn:fail:read? 
-             (lambda (exn) (raise (exn:project ("Could read from question settings file."))))]
+             (lambda (exn) (raise (exn:project ("Could read from question settings file.")
+                                               (current-continuation-marks)))]
            )  
           (read-line)))))
   (unless (file-exists? file-to-run)
