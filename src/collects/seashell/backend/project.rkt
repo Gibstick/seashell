@@ -717,7 +717,7 @@
         (with-handlers 
           ([exn:fail:read? 
              (lambda (exn) (raise (exn:project ("Could read from question settings file.")
-                                               (current-continuation-marks)))]
+                                               (current-continuation-marks))))]
            )  
           (read-line)))))
   (unless (file-exists? file-to-run)
@@ -747,7 +747,8 @@
     (lambda ()
       (with-handlers
         ([exn:fail?
-           (lambda (exn) (raise (exn:project ("Could not write to question settings file."))))]
+           (lambda (exn) (raise (exn:project "Could not write to question settings file."
+                                             (current-continuation-marks))))]
          )
         file))))
 
