@@ -411,7 +411,7 @@
     (build-path 
       question-base
       (with-input-from-file 
-        (build-path project-base question-base ".qsettings") 
+        (build-path project-base question-base (read-config 'question-settings-file)) 
         (lambda () 
           (with-handlers 
             ([exn:fail:read? (lambda (exn) 
