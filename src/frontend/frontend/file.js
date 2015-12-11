@@ -477,6 +477,10 @@ angular.module('frontend-app')
           }
         };
 
+        self.setFileToRun = function() {
+            self.project.setFileToRun(self.question, self.file);
+        };
+
         // Initialization code goes here.
         var key = settings.addWatcher(function () {self.refreshSettings();}, true);
 

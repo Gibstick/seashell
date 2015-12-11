@@ -401,13 +401,14 @@
                         (current-continuation-marks))))
 
   (define project-base (build-project-path name))
+  (logf 'debug (format "project base: ~a" project-base))
   (define project-common (check-and-build-path project-base (read-config 'common-subdirectory)))
   (match-define-values (question-base _ _)
     (split-path file))
 
   ;; Read the settings file that contains the file that is supposed to be run
   (define file-to-run
-    (build-path question-base (get-file-to-run project-base question-base))) 
+    (build-path question-base (get-file-to-run name question-base))) 
     
   (logf 'debug (format "file-to-run: ~a" file-to-run))
 
@@ -698,15 +699,16 @@
 ;;   runner settings file, that specifies which file to run.
 ;;
 ;; Params:
-;;   project - path of the project
+;;   project - name of the project (eg. "A10")
 ;;   question - basename of the question (eg. "q2")
 ;;
 ;; Returns:
 ;;   A string indicating the file to run
 (define/contract (get-file-to-run project question)
-  (-> path-string? path-string? path-string?)
+  (-> (and/c project-name? is-project?) path-string? path-string?)
+  (define project-path (build-project-path project)) 
   (define path (check-and-build-path 
-                 project
+                 project-path
                  question
                  (read-config 'question-settings-file)
                  ))
@@ -716,13 +718,13 @@
       (lambda () 
         (with-handlers 
           ([exn:fail:read? 
-             (lambda (exn) (raise (exn:project ("Could read from question settings file.")
+             (lambda (exn) (raise (exn:project ("Could not read from question settings file.")
                                                (current-continuation-marks))))]
            )  
           (read-line)))))
-  (unless (file-exists? file-to-run)
-    (raise (exn:project (format "Invalid file to run: ~a (does it exist?)" file-to-run)
-                        (current-continuation-marks))))
+  ;; (unless (file-exists? file-to-run)
+  ;;   (raise (exn:project (format "Invalid file to run: ~a (does it exist?)" file-to-run)
+  ;;                       (current-continuation-marks))))
   file-to-run)
   
 ;; (set-file-to-run project question file) writes to the question
@@ -736,12 +738,15 @@
 ;; Returns:
 ;;   Nothing
 (define/contract (set-file-to-run project question file)
-  (-> path-string? path-string? path-string? void)
+  (-> (and/c project-name? is-project?) path-string? path-string? void)
   (define path (check-and-build-path
-                 project
+                 (build-project-path project)
                  question
                  (read-config 'question-settings-file)
                  ))
+
+  (logf 'debug (format "Setting file to run: ~a, in ~a" file path))
+
   (with-output-to-file
     path
     (lambda ()
@@ -750,6 +755,7 @@
            (lambda (exn) (raise (exn:project "Could not write to question settings file."
                                              (current-continuation-marks))))]
          )
-        file))))
+        (printf file)))
+    #:exists 'replace))
 
 

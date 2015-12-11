@@ -522,6 +522,24 @@
               (result . #t))]
       [(hash-table
         ('id id)
+        ('type "getFileToRun")
+        ('project project)
+        ('question question))
+       `#hash((id . ,id)
+              (success . #t)
+              (result . ,(get-file-to-run project question)))]
+      [(hash-table
+        ('id id)
+        ('type "setFileToRun")
+        ('project project)
+        ('question question)
+        ('file file))
+       (set-file-to-run project question file)
+       `#hash((id . ,id)
+              (success . #t)
+              (result . #t))]
+      [(hash-table
+        ('id id)
         ('type "saveSettings")
         ('settings settings))
        (with-output-to-file (build-path (read-config 'seashell) "settings.txt")
