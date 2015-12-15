@@ -101,11 +101,6 @@ angular.module('seashell-projects', ['seashell-websocket', 'marmoset-bindings'])
 
         SeashellFile.prototype.read = function() {
           var self = this;
-          var question = self.fullname().split("/")[0];
-          ws.socket.getFileToRun(self.project.name, question).then(
-                  function (result) {
-                      console.log(result);
-                  });
           return $q.when(ws.socket.readFile(self.project.name, self.fullname()))
             .then(function (conts) {
               return conts;
@@ -496,14 +491,15 @@ angular.module('seashell-projects', ['seashell-websocket', 'marmoset-bindings'])
          */
         SeashellProject.prototype.getFileToRun = function (question) {
             var self = this;
-            return ws.socket.getFileToRun(self.name, question).then(function (result) {
-                return result;
-            });
+            return $q.when(ws.socket.getFileToRun(self.name, question))
+                .then(function (result) {
+                    return result;
+                });
         };
 
 
         /**
-         * SeashellProject.setFileToRun(question)
+         * SeashellProject.setFileToRun(question, file)
          *
          * Modify the settings file to set which file to run.
          */

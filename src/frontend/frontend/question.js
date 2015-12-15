@@ -33,6 +33,7 @@ angular.module('frontend-app')
         self.project = openProject;
         self.common_files = [];
         self.question_files = [];
+        self.runner_file = "";
         self.test_files = [];
         self.console = Console;
         self.marmoset_short_results = null;
@@ -94,17 +95,31 @@ angular.module('frontend-app')
             var groups = [];
             for(var i=0; i<lof.length; i++) {
               groups.push([lof[i]]);
+              var current_file = lof[i];
               while(i<lof.length-1 && grpnm(lof[i+1]) == grpnm(lof[i])) {
                 groups[groups.length-1].push(lof[i+1]);
                 lof.splice(i+1, 1);
               }
+              groups[groups.length-1] = {
+                files: groups[groups.length-1],
+                isFileToRun: (grpnm(current_file) === grpnm(self.runnerFile))
+              }; 
+                
             }
+            console.log("groups: ", groups);
             return groups;
           }
-          var result = self.project.filesFor(self.question);
-          self.common_files = groupfiles(result.common);
-          self.question_files = groupfiles(result.question);
-          self.test_files = groupfiles(result.tests);
+          
+          self.project.getFileToRun(self.question)
+              .then(function (fileToRun) {
+                self.runnerFile = fileToRun;
+                var result = self.project.filesFor(self.question);
+                self.common_files = groupfiles(result.common);
+                self.question_files = groupfiles(result.question);
+                self.test_files = groupfiles(result.tests);
+      
+              });
+
 
           self.project.currentMarmosetProject(self.question).then(function(target) {
             if(target) {
