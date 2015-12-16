@@ -486,7 +486,7 @@ angular.module('seashell-projects', ['seashell-websocket', 'marmoset-bindings'])
         /**
          * SeashellProject.getFileToRun(question)
          *
-         * Returns the file to run when hitting run, from the 
+         * Returns the basename of the file to run when hitting run, from the 
          * question settings file.
          */
         SeashellProject.prototype.getFileToRun = function (question) {

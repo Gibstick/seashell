@@ -296,7 +296,9 @@
         ('project name)
         ('file file)
         ('tests test))
-       (define-values (success? result) (compile-and-run-project name file test))
+       (match-define-values (question _ _) (split-path file))
+       (define file-to-run (build-path question (get-file-to-run name question)))
+       (define-values (success? result) (compile-and-run-project name file-to-run test))
        `#hash((id . ,id)
               (success . ,success?)
               (result . ,result))]
