@@ -238,3 +238,31 @@
     [else #f]))
 
 
+;; (read-project-settings project)
+;; Reads the project settings from the project root.
+;; If the file does not exist, a new file is created with the default settings,
+;; and the defaults are returned. There may be no defaults.
+;; 
+;; Returns:
+;;   settings - JSON object (hash) representing the project settings, such
+;;              such as runnerFiles
+(define/contract (read-project-settings project)
+  (-> (and/c project-name? is-project?) jsexpr?)
+  (define filename (read-config 'project-settings-filename))
+  (cond 
+    [(file-exists? (build-project-path project filename))
+     (with-input-from-file 
+       (build-path (build-project-path project) filename)
+       (lambda () (read)))]
+    [else #f]))
+
+
+;; (write-project-settings project settings)
+;; Writes to the project settings in the project root.
+;; 
+;; Returns: nothing
+(define/contract (write-project-settings project settings)
+  (-> (and/c project-name? is-project?) jsexpr? void?)
+  (with-output-to-file
+    (build-path (build-project-path project) (read-config 'project-settings-filename))
+    (lambda () (write settings))))
