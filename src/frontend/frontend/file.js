@@ -478,7 +478,12 @@ angular.module('frontend-app')
         };
 
         self.setFileToRun = function() {
-            self.project.setFileToRun(self.question, self.file);
+            self.project.setFileToRun(self.question, self.file).then(function () {
+              $scope.$emit('setFileToRun', []);
+            });
+            // emit an event to the parent scope for
+            // since EditorController is in the child scope of EditorFileController
+
         };
 
         // Initialization code goes here.

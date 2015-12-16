@@ -505,7 +505,7 @@ angular.module('seashell-projects', ['seashell-websocket', 'marmoset-bindings'])
          */
         SeashellProject.prototype.setFileToRun = function (question, file) {
             var self = this;
-            ws.socket.setFileToRun(self.name, question, file);
+            return ws.socket.setFileToRun(self.name, question, file);
         };
 
         /**

@@ -100,13 +100,14 @@ angular.module('frontend-app')
                 groups[groups.length-1].push(lof[i+1]);
                 lof.splice(i+1, 1);
               }
+              // wrap the list in an object with a boolean
+              // isFileToRun is true if the file is the file to run
               groups[groups.length-1] = {
                 files: groups[groups.length-1],
                 isFileToRun: (grpnm(current_file) === grpnm(self.runnerFile))
               }; 
                 
             }
-            console.log("groups: ", groups);
             return groups;
           }
           
@@ -130,6 +131,13 @@ angular.module('frontend-app')
           });
         };
         $scope.refresh = self.refresh;
+
+        /** Handle the setFileToRun broadcast 
+         *  by refreshing the file list
+         */
+        $scope.$on('setFileToRun', function () { 
+            self.refresh();
+        });
 
         /** Adds file to the project. */
         self.add_file = function () {
