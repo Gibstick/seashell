@@ -84,6 +84,11 @@
       (new-project "test-project")
       (check-false (read-project-settings "test-project")))
 
+    (test-case "update nonexistent project settings"
+      (new-project "test-project-2")
+      (write-project-settings/key "test-project-2" 'key "val")
+      (check-equal? (read-project-settings "test-project-2") #hasheq((key . "val"))))
+
     (test-case "Write project settings"
       (write-project-settings "test-project" #hasheq((A . 5) (B . 6)))
       (check-equal? (read-project-settings "test-project") #hasheq((A . 5) (B . 6))))
