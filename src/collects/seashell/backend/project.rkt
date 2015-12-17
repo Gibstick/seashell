@@ -37,6 +37,7 @@
          project-base-path
          runtime-files-path
          compile-and-run-project
+         compile-and-run-project/use-runner
          marmoset-submit
          get-most-recently-used
          update-most-recently-used
@@ -487,6 +488,21 @@
     [else
       (values #f `#hash((messages . ,messages) (status . "compile-failed")))]))
 
+
+;; (compile-and-run-project/use-runner name tests)
+;; is a wrapper around compile-and-run-project, supplying the file
+;; from the project settings file.
+;; Note: the file arg is used only to determine the question
+(define/contract (compile-and-run-project/use-runner name file tests)
+  (-> project-name? path-string? (listof path-string?)
+      (values boolean?
+              hash?))
+  (define question (car (string-split file "/")))
+  (define file-to-run (build-path question 
+                                       (get-file-to-run name question)))
+  (compile-and-run-project name file-to-run tests))
+
+ 
 ;; (export-project name) -> bytes?
 ;; Exports a project to a ZIP file.
 ;;
@@ -721,8 +737,9 @@
 ;; Returns: nothing
 (define/contract (write-project-settings/key project key val)
   (-> (and/c project-name? is-project?) symbol? any/c void?)
+  (define old-settings (read-project-settings project)) 
   (define new-settings 
-    (hash-set (read-project-settings project) key val))
+    (hash-set (if old-settings old-settings #hasheq())  key val))
   (write-project-settings project new-settings))
 
 
