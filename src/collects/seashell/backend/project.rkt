@@ -44,6 +44,9 @@
          archive-projects
          get-file-to-run
          set-file-to-run
+         read-project-settings 
+         write-project-settings
+         write-project-settings/key
          )
 
 (require seashell/log
@@ -681,6 +684,48 @@
   (make-directory proj-root))
 
 
+;; (read-project-settings project)
+;; Reads the project settings from the project root.
+;; If the file does not exist, false is returned
+;; 
+;; Returns:
+;;   settings - the project settings, or false
+(define/contract (read-project-settings project)
+  (-> (and/c project-name? is-project?) (or/c #f hash-eq?))
+  (define filename (read-config 'project-settings-filename))
+  (cond 
+    [(file-exists? (build-path (build-project-path project) filename))
+     (with-input-from-file 
+       (build-path (build-project-path project) filename)
+       (lambda () (read)))]
+    [else #f]))
+
+
+;; (write-project-settings project settings)
+;; Writes to the project settings in the project root.
+;;
+;; Arguments: settings, a hash of all the project settings
+;;
+;; Returns: nothing
+(define/contract (write-project-settings project settings)
+  (-> (and/c project-name? is-project?) hash-eq? void?)
+  (with-output-to-file
+    (build-path (build-project-path project) (read-config 'project-settings-filename))
+    (lambda () (write settings))
+    #:exists 'replace))
+
+
+;; (write-project-settings/key project key val)
+;; Updates the (key, val) pair in the project settings hash.
+;; Equivalent to a hash-set.
+;; Returns: nothing
+(define/contract (write-project-settings/key project key val)
+  (-> (and/c project-name? is-project?) symbol? any/c void?)
+  (define new-settings 
+    (hash-set (read-project-settings project) key val))
+  (write-project-settings project new-settings))
+
+
 ;; (get-file-to-run project question) attempts to read the 
 ;;   runner settings file, that specifies which file to run.
 ;;
@@ -692,26 +737,12 @@
 ;;   A string indicating the file to run
 (define/contract (get-file-to-run project question)
   (-> (and/c project-name? is-project?) path-string? (or/c path-string? ""))
-  (define project-path (build-project-path project)) 
-  (define path (check-and-build-path 
-                 project-path
-                 question
-                 (read-config 'question-settings-file)
-                 ))
-  (cond
-    [(not (file-exists? path)) ""]
-    [else 
-      (define file-to-run 
-        (with-input-from-file 
-          path 
-          (lambda () 
-            (with-handlers 
-              ([exn:fail:read? 
-                 (lambda (exn) (raise (exn:project ("Could not read from question settings file.")
-                                                   (current-continuation-marks))))]
-               )  
-              (read-line)))))
-      file-to-run]))
+  (define settings-hash (read-project-settings project))
+  (if settings-hash
+    (hash-ref settings-hash (string->symbol (string-append question "-runner")))
+    ""
+    ))
+
   
 ;; (set-file-to-run project question file) writes to the question
 ;;   settings file, specifying which file to run.
@@ -725,23 +756,9 @@
 ;;   Nothing
 (define/contract (set-file-to-run project question file)
   (-> (and/c project-name? is-project?) path-string? path-string? void)
-  (define path (check-and-build-path
-                 (build-project-path project)
-                 question
-                 (read-config 'question-settings-file)
-                 ))
-
-  (logf 'debug (format "Setting file to run: ~a, in ~a" file path))
-
-  (with-output-to-file
-    path
-    (lambda ()
-      (with-handlers
-        ([exn:fail?
-           (lambda (exn) (raise (exn:project "Could not write to question settings file."
-                                             (current-continuation-marks))))]
-         )
-        (printf file)))
-    #:exists 'replace))
+  (write-project-settings/key project
+                              (string->symbol (string-append question "-runner"))
+                              file))
+  
 
 
