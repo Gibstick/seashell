@@ -401,9 +401,8 @@
                                    (current-continuation-marks)))]
       [(#t #f) (values (cons (string->path (string-append hdr ".c")) c-files) o-files)]
       [(#f #t) (values c-files (cons (string->path (string-append hdr ".o")) o-files))]
-      [(#f #f) (raise (exn:project (format "You included ~a.h, but did not provide ~a.c or ~a.o"
-                                          hdrname hdrname hdrname)
-                                   (current-continuation-marks)))])))
+      ;; allow header-only: c-files and o-files will be empty 
+      [(#f #f) (values c-files o-files)])))
 
 ;; (compile-and-run-project name file tests is-cli)
 ;; Compiles and runs a project.

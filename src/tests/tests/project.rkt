@@ -25,6 +25,22 @@ int main(){
 }
 HERE
 )
+(define test-main-posn-file #<<HERE
+#include <stdio.h>
+#include "add.h"
+#include "multiply.h"
+#include "posn.h"
+int main(){
+    int a,b;
+    scanf("%d", &a);
+    scanf("%d", &b);
+    struct posn p = {5, 3};
+    if(a == 0) return 1;
+    printf("%d\n", add(a,mult(1,b)));
+}
+HERE
+)
+(define test-posn-header "struct posn { int x; int y; };\n")
 
 (define/provide-test-suite project-suite
   (test-suite "Project Tests"
@@ -102,6 +118,33 @@ HERE
         (sync (program-wait-evt pid))
         (check-equal? exp-result (third (deserialize (read (program-stdout pid)))))))
 
+    (test-case "Run a Project with common and tests and posn header"
+      (make-directory (check-and-build-path (build-project-path "foo") "tests"))
+      (make-directory (check-and-build-path (build-project-path "foo") "common"))
+      (for ([file '("main.c"
+                    "add.h" "add.c"
+                    "common/multiply.h" "common/multiply.c"
+                    "common/mod2.h" "common/mod2.c"
+                    "posn.h"
+                    "tests/pass.in" "tests/pass.expect"
+                    "tests/fail.in" "tests/fail.expect"
+                    "tests/crash.in" "tests/crash.expect")]
+            [contents (list test-main-posn-file
+                            test-add-hdr test-add-imp
+                            test-mult-hdr test-mult-imp
+                            test-mod2-hdr test-mod2-imp
+                            test-posn-header
+                            "3\n4\n" "7\n"
+                            "4\n5\n" "2\n"
+                            "0\n0\n" "0\n")])
+        (with-output-to-file (check-and-build-path (build-project-path "foo") file)
+          (thunk (display contents))))
+      (define-values (success hsh) (compile-and-run-project "foo" "main.c" '("pass" "fail" "crash") #f))
+      (check-true success)
+      (for ([pid (hash-ref hsh 'pids)]
+            [exp-result '("passed" "failed" "error")])
+        (sync (program-wait-evt pid))
+        (check-equal? exp-result (third (deserialize (read (program-stdout pid)))))))
     (test-case "Get a Compilation Error"
       (with-output-to-file (check-and-build-path (build-project-path "foo") "error.c")
         (thunk (display "great code;")))
